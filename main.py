@@ -1,7 +1,6 @@
 from to_ascii import main as to_ascii
 import requests
 import random
-from bs4 import BeautifulSoup
 import shutil
 import os, tomllib
 from pathlib import Path
