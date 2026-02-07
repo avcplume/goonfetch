@@ -17,3 +17,5 @@ dependencies = [
     "textual-image>=0.8.5",
     "urllib3==2.6.3",
 ]
+[tool.setuptools]
+py-modules = ["main", "to_kitty", "to_ascii"]
