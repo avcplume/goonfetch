@@ -17,10 +17,16 @@ auth = "login=glacier54&api_key=dJfDKFFsx3o4wAH762udRBBa"
 tags = "-young -shota -loli -scat -watersports -gore -video -webm -animated score:>10"
 
 ```
-Build (the way I do it):
+Build:
 ```
 git clone https://github.com/glacier54/goonfetch
 cd goonfetch
 poetry install --no-root
 ```
-you can then run with `poetry run python main.py` while in the directory.
+If you want to be able to run it as a command, create this file in `/usr/bin/goonfetch`:
+```
+#!/usr/bin/env bash
+cd [full path to your goonfetch folder] || exit 1
+poetry run python main.py "$@"
+```
+and run `sudo chmod +x /usr/bin/goonfetch` for execution perms.
