@@ -15,6 +15,6 @@ tags = "-ai_generated -video score:>10 -anthro -ai_assisted -animal -beastiality
 auth = "login=glacier54&api_key=dJfDKFFsx3o4wAH762udRBBa"
 tags = "-young -shota -loli -scat -watersports -gore -video -webm -animated score:>10"
 
-
+```
 Build:
 idk use `pyinstaller --onefile main.py` after installing the dependencies?
