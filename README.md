@@ -1,6 +1,8 @@
 # goonfetch
 Cli rule34 fetching tool
 
+I added an aur repo, but I can't guarantee it'll work right away `yay goonfetch`
+
 How to use:
 create `config.toml` in `.config/goonfetch/`
 
