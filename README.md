@@ -10,13 +10,10 @@ example:
 ```toml
 # .config/goonfetch/config.toml
 default = "rule34" # default api supplier
+# get api key from https://rule34.xxx/index.php?page=account&s=options, after making an account
 [rule34]
-auth = "api_key=[API_KEY]&user_id=[USER_ID]" # get api key from https://rule34.xxx/index.php?page=account&s=options, after making an account
+auth = "api_key=[API_KEY]&user_id=[USER_ID]" 
 tags = "-ai_generated -video score:>10 -anthro -ai_assisted -animal -beastiality"
-
-[e621]
-auth = "login=api_key=[API_KEY]&user_id=[USER_ID]"
-tags = "-young -shota -loli -scat -watersports -gore -video -webm -animated score:>10"
 [e621]
 auth = "login=[API_KEY]&user_id=[USER_ID]"
 tags = "-young -shota -loli -scat -watersports -gore -video -webm -animated score:>10"
