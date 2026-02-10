@@ -25,7 +25,7 @@ Build:
 ```
 git clone https://github.com/glacier54/goonfetch
 cd goonfetch
-poetry install --no-root
+uv sync
 ```
 If you want to be able to run it as a command, create this file in `/usr/bin/goonfetch`:
 ```
