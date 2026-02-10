@@ -27,13 +27,11 @@ chars = list(reversed("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<
 def main(imbytes, rc):
     maw, mah = rc
     maw -= 3
+    mah /= 0.55
+    mah += 1
     imag = Image.open(imbytes).convert('RGB')
-    h_o, w_o = imag.size
-    if h_o*0.55/mah > w_o/maw:
-        w, h = int(w_o*mah/h_o/0.55), mah
-    else:
-        w, h = maw, int(h_o*maw/w_o*0.55)
-    imag = imag.resize((w, h), Image.NEAREST)
+    imag.thumbnail((maw, mah), Image.BILINEAR)
+    imag = imag.resize((imag.width, int(imag.height * 0.55)), Image.BILINEAR)
     img = np.array(imag, dtype='uint8')
     
     wts = np.array([77, 150, 29], dtype=np.uint16)  # uint16 to avoid overflow
@@ -43,11 +41,11 @@ def main(imbytes, rc):
 
     n = len(chars)*2
     idx = np.clip(np.uint8((dist-mi)*n/ma), 0, n-1)
-    for i in range(h):
+    for i in range(img.shape[0]):
         s = ''
-        for j in range(w):
+        for j in range(img.shape[1]):
             # bb, bg, br = img[i, j]
-            fb, fg, fr = img[i, j]
+            fr, fg, fb = img[i, j]
             x_o = idx[i, j]
             # fr, fg, fb = 255, 255, 255
             br, bg, bb = 0, 0, 0
@@ -55,7 +53,7 @@ def main(imbytes, rc):
             isBold = x_o % 2 == 1
             s += ansi(x, (fr, fg, fb), isBold=isBold)
         print(f'{i:02d} '+s)
-    return w, h
+    return img.shape[:-1][::-1]
 if __name__ == '__main__':
     with open('image.png', 'rb') as f:
         by = f.read()
