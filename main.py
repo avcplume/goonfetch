@@ -128,9 +128,9 @@ def confparse():
     cfg = tomllib.loads(path.read_text())
     parser = argparse.ArgumentParser(description="Example with optional args")
     parser.add_argument('--max-columns', '-c', type=int, default=size.columns//2, help='Max character columns. Defaults to 1/2 terminal width.')
-    parser.add_argument('--max-rows', '-r', type=int, default=size.lines-4, help='Max character rows. Defaults to terminal height.')
+    parser.add_argument('--max-rows', '-r', type=int, default=size.lines, help='Max character rows. Defaults to terminal height.')
     parser.add_argument('--kitty', action='store_true', required=False, help='Use Kitty Graphics Protocol.')
-    parser.add_argument('--mode', choices=["rule34", "e621"], default=cfg.get("default", "rule34"), help='Set API call to rule34 or e621.')
+    parser.add_argument('--mode', choices=["rule34", "e621", "gelbooru"], default=cfg.get("default", "rule34"), help='Set API call to rule34 or e621.')
     parser.add_argument('additional_tags', nargs='*', help="Add rule34 tags.")
     args = parser.parse_args()
     if not path.exists:
@@ -149,18 +149,18 @@ def main(data, ma, protocol):
 if __name__ == '__main__':
     conf, args = confparse()
 
+
+    if not conf:
+        raise ValueError("No auth found. You can create an api-key and find your user id/username in the mode's user settings page.")
     tags = conf.get("tags", "")
     if args.additional_tags:
         tags = (tags + " " + " ".join(args.additional_tags)).strip()
-
-    if not conf:
-        raise ValueError("No auth found. You can create an api-key and find your user id/username in the e621.net/rule34.xxx user settings page.")
     match args.mode:
         case 'rule34':
-            data = get_rule34(conf['auth'], conf['tags'])
+            data = get_rule34(conf['auth'], tags)
         case 'e621':
-            data = get_e621(conf['auth'], conf['tags'])
+            data = get_e621(conf['auth'], tags)
         case 'gelbooru':
-            data = get_gelbooru(conf['auth'], tags)  #for tags to register when used in a prompt for gelb, i had to change 'conf['tags']' to just 'tags', it might have to change for the others too.
+            data = get_gelbooru(conf['auth'], tags)
 
     main(data, (args.max_columns, args.max_rows+4), args.kitty)
