@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from to_ascii import main as to_ascii
-from to_kitty import print_kitty
+from to_kitty import print_kitty as to_kitty
 import requests
 import random
 import shutil
@@ -32,14 +32,50 @@ class ReturnObject:
     tags: str
     score: str
 LIMIT = 100
-def get_rule34(auth, tags):
-    url = f'https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&limit={LIMIT}&pid=1&tags={tags}&json=1&'+auth
-    r = requests.get(url).json()
-    req = random.choice(r)
+
+def raise_reqfail(resp, **text):
+    if not 'info' in text:
+        text['info']="API call returned unexpected response"
+    text['statuscode'] = resp.status_code
+    text['response'] = resp.text[:300]
+    text['url_used'] = resp.url        # super useful
+    print(text)
+    raise RuntimeError(text['info']+" (see console output above error)")
+
+def get(url, params):
+    resp = requests.get(url, params=params, headers={"User-Agent": "goonfetch/0.1.x"})
+    if resp.status_code != 200:
+        raise_reqfail(resp)
+    if resp.text == '':
+        raise_reqfail(resp, info="No posts found from criteria.")
+    try:
+        dat = resp.json()
+    except requests.exceptions.JSONDecodeError:
+        raise_reqfail(resp, info="Response was not in JSON format.")
+    if not dat:
+        raise_reqfail(resp, info="No posts found from criteria.")
+    return dat
+
+def get_booru(base, parms):
+    parms['page'] = 'dapi'
+    parms['s'] = 'post'
+    parms['q'] = 'index'
+    parms['limit'] = LIMIT
+    parms['pid'] = 1
+    parms['json'] = 1
+    url = base
+    data = get(url, parms)
+    posts = data["post"] if isinstance(data, dict) and "post" in data else data
+    if not posts:
+        raise RuntimeError("No posts returned (check tags/auth).")
+    if not isinstance(posts, list):
+        print(posts)
+        raise RuntimeError(f"Unexpected format (check tags/auth): {posts}")
+    req = random.choice(posts)
     ret = ReturnObject(
         lowres_url=req['preview_url'],
         highres_url=req['file_url'],
-        page_url=f"https://rule34.xxx/index.php?page=post&s=view&id={req['id']}",
+        page_url=f"https://{urllib.parse.urlparse(base).netloc}/index.php?page=post&s=view&id={req['id']}",
         author=req['owner'],
         tags=req['tags'],
         score=req['score']
@@ -47,62 +83,13 @@ def get_rule34(auth, tags):
     )
     return ret
 
-
-
-def get_gelbooru(auth, tags):
-    # auth expected like: "&api_key=abc&user_id=1234"
-    auth_params = dict(urllib.parse.parse_qsl(auth))
-
-    params = {
-        "page": "dapi",
-        "s": "post",
-        "q": "index",
-        "json": "1",
-        "limit": str(LIMIT),
-        "tags": tags,
-        **auth_params,
-    }
-
-    resp = requests.get(
-        "https://gelbooru.com/index.php",
-        params=params,
-        headers={"User-Agent": "goonfetch/0.1.0"},
-    )
-
-    if resp.status_code != 200:
-        print("Gelbooru HTTP:", resp.status_code)
-        print("URL used:", resp.url)        # super useful
-        print(resp.text[:300])
-        raise RuntimeError("Gelbooru returned non-200 response")
-
-    data = resp.json()
-    posts = data["post"] if isinstance(data, dict) and "post" in data else data
-    if not posts:
-        raise RuntimeError("No posts returned (check tags/auth).")
-
-    req = random.choice(posts)
-
-    return ReturnObject(
-        lowres_url=req.get("preview_url", ""),
-        highres_url=req.get("file_url", ""),
-        page_url=f"https://gelbooru.com/index.php?page=post&s=view&id={req['id']}",
-        author=req.get("owner", "unknown"),
-        tags=req.get("tags", ""),
-        score=str(req.get("score", "0")),
-    )
-
-
-
-
-
-
-def get_e621(auth, tags):
-    params = {"tags": tags, "limit": str(LIMIT)}
-    base_url = "https://e621.net/posts.json?"
-    url_params = urllib.parse.urlencode(params)
-    url = base_url + url_params + "&" + auth
-    r = requests.get(url, headers={"User-Agent": "goonfetch/0.1.0 (glacier54)"}).json()["posts"]
-    req = random.choice(r)
+def get_e621(parms):
+    parms['limit'] = LIMIT
+    base_url = "https://e621.net/posts.json/"
+    resp = get(base_url, parms)['posts']
+    if not resp:
+        raise RuntimeError("No posts found.")
+    req = random.choice(resp)
     ret = ReturnObject(
         lowres_url=req["preview"]["url"],
         highres_url=req["file"]["url"],
@@ -113,12 +100,10 @@ def get_e621(auth, tags):
     )
     return ret
 def render(ro, ma, protocol):
+    img_bytes = requests.get(ro.highres_url).content
     if protocol:
-        img_bytes = requests.get(ro.highres_url).content
-        print_kitty(BytesIO(img_bytes), (int(ma[0]+3), int(ma[1]-4)))
-        w,h = ma
+        w, h = to_kitty(BytesIO(img_bytes), (int(ma[0]+3), int(ma[1]-4)))
     else:
-        img_bytes = requests.get(ro.highres_url).content
         w, h = to_ascii(BytesIO(img_bytes), (int(ma[0]), int(ma[1]-4)))
     return w,h
 
@@ -127,8 +112,8 @@ def confparse():
     path = Path(user_config_dir("goonfetch")) / "config.toml"
     cfg = tomllib.loads(path.read_text())
     parser = argparse.ArgumentParser(description="Example with optional args")
-    parser.add_argument('--max-columns', '-c', type=int, default=size.columns//2, help='Max character columns. Defaults to 1/2 terminal width.')
-    parser.add_argument('--max-rows', '-r', type=int, default=size.lines, help='Max character rows. Defaults to terminal height.')
+    parser.add_argument('--max-columns', '-c', type=int, default=size.columns, help='Max character columns. Defaults to 1/2 terminal width.')
+    parser.add_argument('--max-rows', '-r', type=int, default=size.lines-7, help='Max character rows. Defaults to terminal height.')
     parser.add_argument('--kitty', action='store_true', required=False, help='Use Kitty Graphics Protocol.')
     parser.add_argument('--mode', choices=["rule34", "e621", "gelbooru"], default=cfg.get("default", "rule34"), help='Set API call to rule34 or e621.')
     parser.add_argument('additional_tags', nargs='*', help="Add rule34 tags.")
@@ -148,19 +133,20 @@ def main(data, ma, protocol):
     print(f"score: {data.score}")
 if __name__ == '__main__':
     conf, args = confparse()
-
-
     if not conf:
         raise ValueError("No auth found. You can create an api-key and find your user id/username in the mode's user settings page.")
+    if conf.get('auth'):
+        conf.update(urllib.parse.parse_qs(conf['auth']))
+        conf.pop("auth", None)
     tags = conf.get("tags", "")
     if args.additional_tags:
-        tags = (tags + " " + " ".join(args.additional_tags)).strip()
+        conf['tags'] = (tags + " " + " ".join(args.additional_tags)).strip()
     match args.mode:
         case 'rule34':
-            data = get_rule34(conf['auth'], tags)
+            data = get_booru('https://rule34.xxx/index.php', conf)
         case 'e621':
-            data = get_e621(conf['auth'], tags)
+            data = get_e621(conf)
         case 'gelbooru':
-            data = get_gelbooru(conf['auth'], tags)
+            data = get_booru('https://gelbooru.com/index.php', conf)
 
     main(data, (args.max_columns, args.max_rows+4), args.kitty)
